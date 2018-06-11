@@ -445,66 +445,6 @@
             );
         }(Entity));
 
-        var Line = (function (Parent) {
-            return extend(
-                function Line(sourcePosition, targetPosition, color) {
-                    Parent.call(this, null, null);
-
-                    this.targetPosition = targetPosition;
-                    this.sourcePosition = sourcePosition;
-
-                    this.color = color;
-
-                    this.active = false;
-                }, Parent, {
-                    sourcePosition: null,
-                    targetPosition: null,
-
-                    color: null,
-
-                    active: false,
-
-                    render: function render(context) {
-                        if (!this.active) {
-                            return;
-                        }
-
-                        context.fillStyle = this.color;
-                        context.strokeStyle = this.color;
-
-                        context.beginPath();
-                        context.moveTo(this.sourcePosition.getX(), this.sourcePosition.getY());
-                        context.lineTo(this.targetPosition.getX(), this.targetPosition.getY());
-                        context.stroke();
-                        context.closePath();
-                    },
-
-                    update: function update(frameTime) {
-                        var dX = this.targetPosition.getX() - this.sourcePosition.getX();
-                        var dY = this.targetPosition.getY() - this.sourcePosition.getY();
-
-                        var d = Math.sqrt((dX * dX) + (dY * dY));
-
-                        this.active = (d < 50);
-                    },
-
-                    getColor: function getColor() {
-                        return this.color;
-                    },
-                    setColor: function setColor(color) {
-                        this.color = color;
-                    },
-
-                    getActive: function getActive() {
-                        return this.active;
-                    },
-                    setActive: function setActive(active) {
-                        this.active = active;
-                    },
-                }
-            );
-        }(Entity));
-
         var Demo = (function (Parent) {
             return extend(
                 function Demo(context, width, height, count) {
@@ -512,39 +452,76 @@
 
                     this.count = count;
 
+                    this.color = '#000';
+                    this.pointColor = '#fff';
+                    this.lineColor = '#ddd';
+
                     this.pointList = [];
-                    this.lineList = [];
                 }, Parent, {
                     count: 0,
 
+                    color: null,
+                    pointColor: null,
+                    lineColor: null,
+
                     pointList: [],
-                    lineList: [],
 
                     update: function update(frameTime) {
                         this.pointList.forEach(function (currentValue, index, array) {
                             currentValue.update(frameTime);
                         }, this);
-
-                        this.lineList.forEach(function (currentValue, index, array) {
-                            currentValue.update(frameTime);
-                        }, this);
                     },
 
                     render: function render(context) {
-                        context.clearRect(0, 0, canvas.width, canvas.height);
+                        context.clearRect(0, 0, this.bound.getWidth(), this.bound.getHeight());
+
+                        context.fillStyle = this.color;
+                        context.strokeStyle = this.color;
+                        context.fillRect(0, 0, this.bound.getWidth(), this.bound.getHeight());
 
                         this.pointList.forEach(function (currentValue, index, array) {
                             currentValue.render(context);
                         }, this);
 
-                        this.lineList.forEach(function (currentValue, index, array) {
-                            currentValue.render(context);
+                        context.fillStyle = this.lineColor;
+                        context.strokeStyle = this.lineColor;
+                        
+                        context.lineWidth = 0.1;
+
+                        this.pointList.forEach(function (currentValue, index, array) {
+                            var sourcePosition = currentValue.getPosition();
+
+                            context.beginPath();
+
+                            this.pointList.forEach(function (currentValue, index, array) {
+                                var targetPosition = currentValue.getPosition();
+
+                                if (sourcePosition.getX() === targetPosition.getX()
+                                    && sourcePosition.getY() === targetPosition.getY()
+                                    && sourcePosition.getZ() === targetPosition.getZ()) {
+                                    return;
+                                }
+
+                                var dX = targetPosition.getX() - sourcePosition.getX();
+                                var dY = targetPosition.getY() - sourcePosition.getY();
+
+                                var d = Math.sqrt((dX * dX) + (dY * dY));
+
+                                if (d > 50) {
+                                    return;
+                                }
+
+                                context.moveTo(sourcePosition.getX(), sourcePosition.getY());
+                                context.lineTo(targetPosition.getX(), targetPosition.getY());
+                                context.stroke();
+                            }, this);
+                            
+                            context.closePath();
                         }, this);
                     },
 
                     initialize: function () {
                         this.pointList.length = 0;
-                        this.lineList.length = 0;
 
                         for (var count = 0; count < this.count; count++) {
                             var position = new Position(
@@ -558,36 +535,13 @@
                             var movement = new Position(
                                 Math.random() * movementDirection[random(0, movementDirection.length - 1)],
                                 Math.random() * movementDirection[random(0, movementDirection.length - 1)],
-                                Math.random()
+                                Math.random() / 4
                             );
 
-                            var colorList = ['red', 'green', 'blue', 'yellow'];
-                            var color = colorList[random(0, colorList.length - 1)];
-
-                            var point = new Point(position, this.bound, movement, color);
+                            var point = new Point(position, this.bound, movement, this.pointColor);
 
                             this.pointList.push(point);
                         }
-
-                        this.pointList.forEach(function (currentValue, index, array) {
-                            this.pointList.forEach(function (nextValue, index, array) {
-                                var sourcePosition = currentValue.getPosition();
-                                var targetPosition = nextValue.getPosition();
-
-                                if (sourcePosition.getX() === targetPosition.getX()
-                                    && sourcePosition.getY() === targetPosition.getY()
-                                    && sourcePosition.getZ() === targetPosition.getZ()) {
-                                    return;
-                                }
-
-                                var colorList = ['red', 'green', 'blue', 'yellow'];
-                                var color = colorList[random(0, colorList.length - 1)];
-
-                                var line = new Line(sourcePosition, targetPosition, color);
-
-                                this.lineList.push(line);
-                            }, this);
-                        }, this);
                     },
 
                     getPointList: function getPointList() {
@@ -596,23 +550,15 @@
                     setPointList: function setPointList(pointList) {
                         this.pointList = pointList;
                     },
-
-                    getLineList: function getLineList() {
-                        return this.pointList;
-                    },
-                    setLineList: function setLineList(lineList) {
-                        this.lineList = lineList;
-                    },
                 }
             );
         }(Game));
 
-        var instance = new Demo(context, width, height, 25);
+        var instance = new Demo(context, width, height, 300);
         instance.initialize();
         instance.start();
 
         // TODO: Add event listeners for "Game.play()", "Game.pause()" and "Game.initialize()".
-        // TODO: Optimize performancy of lines.
         // TODO: Optimize usage of "var" and "const".
         // TODO: Write some documentation and wiki.
     </script>
