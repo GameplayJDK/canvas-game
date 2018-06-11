@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <meta charset="utf-8" />
+
+    <title>canvas-demo</title>
+
+    <style>
+        html,
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        canvas {
+            background: #fff;
+            border: solid 1px #000;
+            display: block;
+            margin: 0 auto;
+        }
+
+        p.space {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <p class="space">canvas-demo</p>
+
+    <canvas id="canvas" width="480" height="320">
+        <!-- Main canvas. -->
+    </canvas>
+
+    <!-- Math extension. -->
+
+    <script type="text/javascript">
+        // Converts from degrees to radians.
+        Math.radians = function (degrees) {
+            return (degrees * Math.PI) / 180;
+        };
+
+        // Converts from radians to degrees.
+        Math.degrees = function (radians) {
+            return (radians * 180) / Math.PI;
+        };
+
+        // Generate random number between minimum and maximum value.
+        function random(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        };
+    </script>
+
+    <!-- Developer welcome message. -->
+
+    <script type="text/javascript">
+        console.log('Welcome.');
+    </script>
+
+    <!-- extend() function definition. -->
+
+    <script type="text/javascript">
+        function extend(Child, Parent, objectDefinition) {
+            var prototype = objectDefinition;
+
+            if (typeof (Parent) !== 'undefined') {
+                Child.prototype = Object.create(
+                    Parent.prototype
+                );
+            }
+
+            for (var property in prototype) {
+                if (prototype.hasOwnProperty(property)) {
+                    Child.prototype[property] = prototype[property];
+                }
+            }
+
+            Object.defineProperty(Child.prototype, 'constructor', {
+                enumerable: false,
+                value: Child,
+            });
+
+            return Child;
+        };
+    </script>
+
+    <!-- wrap() function definition. -->
+
+    <script type="text/javascript">
+        function wrap(functionArgument, thisArgument) {
+            return function wrap() {
+                return functionArgument.apply(thisArgument, arguments);
+            };
+        };
+    </script>
+
+    <!-- Engine code. -->
+
+    <script type="text/javascript">
+        var canvas = document.getElementById('canvas');
+        var width = canvas.width;
+        var height = canvas.height;
+        var context = canvas.getContext('2d');
+
+        var Loop = (function (Parent) {
+            return extend(
+                function Loop(fps, update, render, context) {
+                    this.active = false;
+
+                    this.fps = fps;
+                    this.frameTime = 1000 / this.fps;
+
+                    this.startTime = 0;
+                    this.stopTime = 0;
+
+                    this.lastTime = 0;
+                    this.currentTime = 0;
+
+                    this.time = 0;
+
+                    this.update = update;
+                    this.render = render;
+                }, Parent, {
+                    frameTime: 1000,
+                    active: false,
+
+                    startTime: 0,
+                    stopTime: 0,
+
+                    lastTime: 0,
+                    currentTime: 0,
+
+                    time: 0,
+
+                    update: function (frameTime) {
+                    },
+                    render: function (context) {
+                    },
+
+                    run: function run() {
+                        return window.requestAnimationFrame(wrap(this.tick, this));
+                    },
+
+                    tick: function tick(timestamp) {
+                        if (this.startTime === 0) {
+                            this.startTime = this.timestamp;
+                        }
+
+                        this.currentTime = timestamp;
+
+                        this.time = this.time + (this.currentTime - this.lastTime);
+
+                        while (this.time > this.frameTime) {
+                            this.time = this.time - this.frameTime;
+
+                            this.update(this.frameTime);
+                        }
+
+                        this.render(context);
+
+                        this.lastTime = this.currentTime;
+
+                        if (this.active) {
+                            this.run();
+                        } else {
+                            this.stopTime = timestamp;
+                        }
+                    },
+
+                    start: function start() {
+                        this.active = true;
+
+                        this.startTime = 0;
+                        this.stopTime = 0;
+
+                        this.lastTime = 0;
+                        this.currentTime = 0;
+
+                        this.time = 0;
+
+                        this.run();
+                    },
+
+                    stop: function stop() {
+                        this.active = false;
+                    },
+                }
+            );
+        }());
+
+        var Position = (function Position(Parent) {
+            return extend(
+                function Position(x, y, z) {
+                    this.x = x;
+                    this.y = y;
+                    this.z = z;
+                }, Parent, {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+
+                    get: function get() {
+                        return {
+                            x: this.x,
+                            y: this.y,
+                            z: this.z,
+                        };
+                    },
+
+                    set: function set(x, y, z) {
+                        this.x = x;
+                        this.y = y;
+                        this.z = z;
+                    },
+
+                    combine: function combine(x, y, z) {
+                        this.x += x;
+                        this.y += y;
+                        this.z += z;
+                    },
+
+                    getX: function getX() {
+                        return this.x;
+                    },
+                    setX: function setX(x) {
+                        this.x = x;
+                    },
+
+                    getY: function getY() {
+                        return this.y;
+                    },
+                    setY: function setY(y) {
+                        this.y = y;
+                    },
+
+                    getZ: function getZ() {
+                        return this.z;
+                    },
+                    setZ: function setZ(z) {
+                        this.z = z;
+                    },
+                }
+            );
+        }());
+
+        var Bound = (function Bound(Parent) {
+            return extend(
+                function Bound(width, height, depth) {
+                    this.width = width;
+                    this.height = height;
+                    this.depth = depth;
+                }, Parent, {
+                    width: 0,
+                    height: 0,
+                    depth: 0,
+
+                    get: function get() {
+                        return {
+                            width: this.width,
+                            height: this.height,
+                            depth: this.depth,
+                        };
+                    },
+
+                    set: function set(width, height, depth) {
+                        this.width = width;
+                        this.height = height;
+                        this.depth = depth;
+                    },
+
+                    combine: function combine(width, height, depth) {
+                        this.width += width;
+                        this.height += height;
+                        this.depth += depth;
+                    },
+
+                    getWidth: function getWidth() {
+                        return this.width;
+                    },
+                    setWidth: function setWidth(width) {
+                        this.width = width;
+                    },
+
+                    getHeight: function getHeight() {
+                        return this.height;
+                    },
+                    setHeight: function setHeight(height) {
+                        this.height = height;
+                    },
+
+                    getDepth: function getDepth() {
+                        return this.depth;
+                    },
+                    setDepth: function setDepth(depth) {
+                        this.depth = depth;
+                    },
+                }
+            );
+        }());
+
+        var Game = (function (Parent) {
+            return extend(
+                function Game(context, width, height) {
+                    this.context = context;
+
+                    this.bound = new Bound(width, height, 0);
+
+                    this.loop = new Loop(60, wrap(this.update, this), wrap(this.render, this), context);
+                }, Parent, {
+                    context: null,
+
+                    bound: null,
+
+                    loop: null,
+
+                    update: function (timestamp) {
+                    },
+                    render: function (context) {
+                    },
+
+                    start: function start() {
+                        this.loop.start();
+                    },
+
+                    stop: function stop() {
+                        this.loop.stop();
+                    },
+
+                    initialize: function () {
+                    },
+
+                    getBound: function getBound() {
+                        return this.bound;
+                    },
+                    setBound: function setBound(bound) {
+                        this.bound = bound;
+                    },
+                }
+            );
+        }());
+
+        var Entity = (function (Parent) {
+            return extend(
+                function Entity(position, bound) {
+                    this.position = position;
+                    this.bound = bound;
+                }, Parent, {
+                    position: null,
+                    bound: null,
+
+                    update: function (frameTime) {
+                    },
+                    render: function (context) {
+                    },
+
+                    getPosition: function getPosition() {
+                        return this.position;
+                    },
+                    setPosition: function setPosition(position) {
+                        this.position = position;
+                    },
+
+                    getBound: function getBound() {
+                        return this.bound;
+                    },
+                    setBound: function setBound(bound) {
+                        this.bound = bound;
+                    },
+                }
+            )
+        }());
+
+        var Point = (function (Parent) {
+            return extend(
+                function Point(position, bound, movement, color) {
+                    Parent.call(this, position, bound);
+
+                    this.movement = movement;
+
+                    this.color = color;
+                }, Parent, {
+                    position: null,
+                    bound: null,
+
+                    movement: null,
+
+                    color: null,
+
+                    render: function render(context) {
+                        context.fillStyle = this.color;
+                        context.strokeStyle = this.color;
+
+                        context.beginPath();
+                        context.arc(this.position.getX(), this.position.getY(), 2, Math.radians(0), Math.degrees(360), false);
+                        context.fill();
+                        context.closePath();
+                    },
+
+                    update: function update(frameTime) {
+                        var x = this.position.getX();
+                        var y = this.position.getY();
+
+                        var m = frameTime * this.movement.getZ();
+
+                        var mX = this.movement.getX();
+                        var mY = this.movement.getY();
+
+                        var nX = x + m * mX;
+                        var nY = y + m * mY;
+
+                        if (nX < 0 || nX > this.bound.getWidth()) {
+                            mX = mX * (-1);
+                        }
+
+                        if (nY < 0 || nY > this.bound.getHeight()) {
+                            mY = mY * (-1);
+                        }
+
+                        nX = x + m * mX;
+                        nY = y + m * mY;
+
+                        this.movement.setX(mX);
+                        this.movement.setY(mY);
+
+                        this.position.setX(nX);
+                        this.position.setY(nY);
+                    },
+
+                    getMovement: function getMovement() {
+                        return this.movement;
+                    },
+                    setMovement: function setMovement(movement) {
+                        this.movement = movement;
+                    },
+
+                    getColor: function getColor() {
+                        return this.color;
+                    },
+                    setColor: function setColor(color) {
+                        this.color = color;
+                    },
+                }
+            );
+        }(Entity));
+
+        var Line = (function (Parent) {
+            return extend(
+                function Line(sourcePosition, targetPosition, color) {
+                    Parent.call(this, null, null);
+
+                    this.targetPosition = targetPosition;
+                    this.sourcePosition = sourcePosition;
+
+                    this.color = color;
+
+                    this.active = false;
+                }, Parent, {
+                    sourcePosition: null,
+                    targetPosition: null,
+
+                    color: null,
+
+                    active: false,
+
+                    render: function render(context) {
+                        if (!this.active) {
+                            return;
+                        }
+
+                        context.fillStyle = this.color;
+                        context.strokeStyle = this.color;
+
+                        context.beginPath();
+                        context.moveTo(this.sourcePosition.getX(), this.sourcePosition.getY());
+                        context.lineTo(this.targetPosition.getX(), this.targetPosition.getY());
+                        context.stroke();
+                        context.closePath();
+                    },
+
+                    update: function update(frameTime) {
+                        var dX = this.targetPosition.getX() - this.sourcePosition.getX();
+                        var dY = this.targetPosition.getY() - this.sourcePosition.getY();
+
+                        var d = Math.sqrt((dX * dX) + (dY * dY));
+
+                        this.active = (d < 50);
+                    },
+
+                    getColor: function getColor() {
+                        return this.color;
+                    },
+                    setColor: function setColor(color) {
+                        this.color = color;
+                    },
+
+                    getActive: function getActive() {
+                        return this.active;
+                    },
+                    setActive: function setActive(active) {
+                        this.active = active;
+                    },
+                }
+            );
+        }(Entity));
+
+        var Demo = (function (Parent) {
+            return extend(
+                function Demo(context, width, height, count) {
+                    Parent.call(this, context, width, height);
+
+                    this.count = count;
+
+                    this.pointList = [];
+                    this.lineList = [];
+                }, Parent, {
+                    count: 0,
+
+                    pointList: [],
+                    lineList: [],
+
+                    update: function update(frameTime) {
+                        this.pointList.forEach(function (currentValue, index, array) {
+                            currentValue.update(frameTime);
+                        }, this);
+
+                        this.lineList.forEach(function (currentValue, index, array) {
+                            currentValue.update(frameTime);
+                        }, this);
+                    },
+
+                    render: function render(context) {
+                        context.clearRect(0, 0, canvas.width, canvas.height);
+
+                        this.pointList.forEach(function (currentValue, index, array) {
+                            currentValue.render(context);
+                        }, this);
+
+                        this.lineList.forEach(function (currentValue, index, array) {
+                            currentValue.render(context);
+                        }, this);
+                    },
+
+                    initialize: function () {
+                        this.pointList.length = 0;
+                        this.lineList.length = 0;
+
+                        for (var count = 0; count < this.count; count++) {
+                            var position = new Position(
+                                random(0, this.bound.getWidth()),
+                                random(0, this.bound.getHeight()),
+                                0
+                            );
+
+                            var movementDirection = [-1, 0, +1];
+
+                            var movement = new Position(
+                                Math.random() * movementDirection[random(0, movementDirection.length - 1)],
+                                Math.random() * movementDirection[random(0, movementDirection.length - 1)],
+                                Math.random()
+                            );
+
+                            var colorList = ['red', 'green', 'blue', 'yellow'];
+                            var color = colorList[random(0, colorList.length - 1)];
+
+                            var point = new Point(position, this.bound, movement, color);
+
+                            this.pointList.push(point);
+                        }
+
+                        this.pointList.forEach(function (currentValue, index, array) {
+                            this.pointList.forEach(function (nextValue, index, array) {
+                                var sourcePosition = currentValue.getPosition();
+                                var targetPosition = nextValue.getPosition();
+
+                                if (sourcePosition.getX() === targetPosition.getX()
+                                    && sourcePosition.getY() === targetPosition.getY()
+                                    && sourcePosition.getZ() === targetPosition.getZ()) {
+                                    return;
+                                }
+
+                                var colorList = ['red', 'green', 'blue', 'yellow'];
+                                var color = colorList[random(0, colorList.length - 1)];
+
+                                var line = new Line(sourcePosition, targetPosition, color);
+
+                                this.lineList.push(line);
+                            }, this);
+                        }, this);
+                    },
+
+                    getPointList: function getPointList() {
+                        return this.pointList;
+                    },
+                    setPointList: function setPointList(pointList) {
+                        this.pointList = pointList;
+                    },
+
+                    getLineList: function getLineList() {
+                        return this.pointList;
+                    },
+                    setLineList: function setLineList(lineList) {
+                        this.lineList = lineList;
+                    },
+                }
+            );
+        }(Game));
+
+        var instance = new Demo(context, width, height, 25);
+        instance.initialize();
+        instance.start();
+
+        // TODO: Add event listeners for "Game.play()", "Game.pause()" and "Game.initialize()".
+        // TODO: Optimize performancy of lines.
+        // TODO: Optimize usage of "var" and "const".
+        // TODO: Write some documentation and wiki.
+    </script>
+</body>
+
+</html>
