@@ -22,7 +22,7 @@
 
         canvas {
             background: #fff;
-            border: solid 1px #000;
+            border: none;
 
             margin: 0 auto;
 
@@ -378,34 +378,21 @@
                         this.bound = bound;
                     },
                 }
-            )
+            );
         }());
 
         var Point = (function (Parent) {
             return extend(
-                function Point(position, bound, movement, color) {
+                function Point(position, movement, color, bound) {
                     Parent.call(this, position, bound);
 
                     this.movement = movement;
 
                     this.color = color;
                 }, Parent, {
-                    position: null,
-                    bound: null,
-
                     movement: null,
 
                     color: null,
-
-                    render: function render(context) {
-                        context.fillStyle = this.color;
-                        context.strokeStyle = this.color;
-
-                        context.beginPath();
-                        context.arc(this.position.getX(), this.position.getY(), 2, Math.radians(0), Math.degrees(360), false);
-                        context.fill();
-                        context.closePath();
-                    },
 
                     update: function update(frameTime) {
                         var x = this.position.getX();
@@ -471,6 +458,23 @@
                         this.position.setY(nY);
                     },
 
+                    render: function render(context) {
+                        context.fillStyle = this.color;
+                        context.strokeStyle = this.color;
+
+                        context.beginPath();
+                        context.arc(
+                            this.position.getX(),
+                            this.position.getY(),
+                            2,
+                            Math.radians(0),
+                            Math.degrees(360),
+                            false
+                        );
+                        context.fill();
+                        context.closePath();
+                    },
+
                     getMovement: function getMovement() {
                         return this.movement;
                     },
@@ -487,6 +491,142 @@
                 }
             );
         }(Entity));
+
+        var Player = (function (Parent) {
+            return extend(
+                function Player(position, name, bound) {
+                    var speed = 0.1;
+                    var movement = new Position(0, 0, speed);
+
+                    Parent.call(this, position, movement, '#fff', bound);
+
+                    this.otherColor = '#000';
+
+                    this.name = name;
+
+                    this.targetPosition = new Position(
+                        this.position.getX(),
+                        this.position.getY(),
+                        this.position.getZ()
+                    );
+                }, Parent, {
+                    otherColor: null,
+
+                    name: null,
+
+                    targetPosition: null,
+
+                    mouseMove: function mouseMove(event) {
+                        var canvas = event.target;
+
+                        // rect = { left, top, right, bottom, x, y, width, height }
+                        var rect = canvas.getBoundingClientRect();
+
+                        var tX = event.clientX - rect.left;
+                        var tY = event.clientY - rect.top;
+
+                        this.targetPosition.set(
+                            tX,
+                            tY,
+                            0
+                        );
+                    },
+
+                    update: function update(frameTime) {
+                        var x = this.position.getX();
+                        var y = this.position.getY();
+
+                        var w = this.bound.getWidth();
+                        var h = this.bound.getHeight();
+
+                        var speed = this.movement.getZ();
+
+                        var m = frameTime * speed;
+
+                        var tX = this.targetPosition.getX();
+                        var tY = this.targetPosition.getY();
+
+                        var dX = tX - x;
+                        var dY = tY - y;
+
+                        var step = (1 / speed);
+
+                        var mX = dX / step;
+                        var mY = dY / step;
+
+                        this.movement.set(
+                            mX,
+                            mY,
+                            speed
+                        );
+
+                        var nX = x + m * mX;
+                        var nY = y + m * mY;
+
+                        if (nX < 0) {
+                            nX = 0;
+                        }
+
+                        if (nX > w) {
+                            nX = w;
+                        }
+
+                        if (nY < 0) {
+                            nY = 0;
+                        }
+
+                        if (nY > h) {
+                            nY = h;
+                        }
+
+                        this.position.set(
+                            nX,
+                            nY,
+                            0
+                        );
+                    },
+
+                    render: function render(context) {
+                        context.fillStyle = this.color;
+                        context.strokeStyle = this.otherColor;
+
+                        context.beginPath();
+                        context.arc(
+                            this.position.getX(),
+                            this.position.getY(),
+                            4,
+                            Math.radians(0),
+                            Math.degrees(360),
+                            false
+                        );
+                        context.fill();
+                        context.stroke();
+                        context.closePath();
+                    },
+
+                    getOtherColor: function getOtherColor() {
+                        return this.otherColor;
+                    },
+                    setOtherColor: function setOtherColor(otherColor) {
+                        this.otherColor = otherColor;
+                    },
+
+                    getName: function getName() {
+                        return this.name;
+                    },
+                    setName: function setName(name) {
+                        this.name = name;
+                    },
+
+                    getTargetPosition: function getTargetPosition() {
+                        return this.targetPosition;
+                    },
+                    setTargetPosition: function setTargetPosition(targetPosition) {
+                        this.targetPosition = targetPosition;
+                    },
+                }
+            );
+        }(Point));
 
         var Reporter = (function (Parent) {
             return extend(
@@ -548,6 +688,8 @@
                 function Demo(context, width, height) {
                     Parent.call(this, context, width, height);
 
+                    this.active = false;
+
                     this.count = 100;
 
                     this.color = '#000';
@@ -556,6 +698,8 @@
 
                     this.pointList = [];
                 }, Parent, {
+                    active: false,
+
                     count: 0,
 
                     color: null,
@@ -564,13 +708,16 @@
 
                     pointList: [],
 
+                    player: null,
+
                     resize: function resize(event) {
                         var canvas = this.context.canvas;
                         var document = canvas.ownerDocument;
                         var window = document.defaultView;
+                        // window = event.target;
 
-                        var width = event.target.innerWidth;
-                        var height = event.target.innerHeight;
+                        var width = window.innerWidth;
+                        var height = window.innerHeight;
 
                         canvas.width = width;
                         canvas.height = height;
@@ -585,6 +732,12 @@
                     },
 
                     update: function update(frameTime) {
+                        if (!this.active) {
+                            return;
+                        }
+
+                        this.player.update(frameTime);
+
                         this.pointList.forEach(function (currentValue, index, array) {
                             currentValue.update(frameTime);
                         }, this);
@@ -596,6 +749,12 @@
                         context.fillStyle = this.color;
                         context.strokeStyle = this.color;
                         context.fillRect(0, 0, this.bound.getWidth(), this.bound.getHeight());
+
+                        if (!this.active) {
+                            return;
+                        }
+
+                        this.player.render(context);
 
                         this.pointList.forEach(function (currentValue, index, array) {
                             currentValue.render(context);
@@ -644,7 +803,11 @@
 
                     windowResizeReporter: null,
 
+                    canvasMouseMoveReporter: null,
+
                     create: function create() {
+                        this.active = true;
+
                         var canvas = this.context.canvas;
                         var document = canvas.ownerDocument;
                         var window = document.defaultView;
@@ -652,6 +815,17 @@
                         this.windowResizeReporter = new EventReporter(window, 'resize', wrap(this.resize, this));
                         this.windowResizeReporter.register();
                         this.windowResizeReporter.trigger();
+
+                        var position = new Position(
+                            this.bound.getWidth() / 2,
+                            this.bound.getHeight() / 2,
+                            0
+                        );
+
+                        this.player = new Player(position, name, this.bound);
+
+                        this.canvasMouseMoveReporter = new EventReporter(canvas, 'mousemove', wrap(this.player.mouseMove, this.player));
+                        this.canvasMouseMoveReporter.register();
 
                         for (var count = 0; count < this.count; count++) {
                             var position = new Position(
@@ -668,16 +842,27 @@
                                 Math.random() / 4
                             );
 
-                            var point = new Point(position, this.bound, movement, this.pointColor);
+                            var point = new Point(position, movement, this.pointColor, this.bound);
 
                             this.pointList.push(point);
                         }
                     },
 
                     destroy: function destory() {
+                        this.active = false;
+
                         this.pointList.length = 0;
 
                         this.windowResizeReporter.unregister();
+
+                        this.canvasMouseMoveReporter.unregister();
+                    },
+
+                    getActive: function getActive() {
+                        return this.active;
+                    },
+                    setActive: function setActive(active) {
+                        this.active = active;
                     },
 
                     getCount: function getCount() {
@@ -702,8 +887,7 @@
         instance.create();
         instance.start();
 
-        // TODO: Add mouse interaction.
-        // TODO: Add event listeners for "Game.play()", "Game.pause()" and "Game.initialize()".
+        // TODO: Optimize mouse interaction.
         // TODO: Optimize usage of "var" and "const".
         // TODO: Write some documentation and wiki, add "console.log()" message.
     </script>
