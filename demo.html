@@ -331,12 +331,13 @@
                     start: function start() {
                         this.loop.start();
                     },
-
                     stop: function stop() {
                         this.loop.stop();
                     },
 
-                    initialize: function () {
+                    create: function () {
+                    },
+                    destroy: function () {
                     },
 
                     getBound: function getBound() {
@@ -410,7 +411,12 @@
                         var x = this.position.getX();
                         var y = this.position.getY();
 
-                        var m = frameTime * this.movement.getZ();
+                        var w = this.bound.getWidth();
+                        var h = this.bound.getHeight();
+
+                        var speed = this.movement.getZ();
+
+                        var m = frameTime * speed;
 
                         var mX = this.movement.getX();
                         var mY = this.movement.getY();
@@ -418,27 +424,47 @@
                         var nX = x + m * mX;
                         var nY = y + m * mY;
 
-                        var collison = false;
+                        var collision = false;
 
-                        if (nX < 0 || nX > this.bound.getWidth()) {
+                        if (nX < 0 || nX > w) {
                             mX = mX * (-1);
 
-                            collison = true;
+                            collision = true;
                         }
 
-                        if (nY < 0 || nY > this.bound.getHeight()) {
+                        if (nY < 0 || nY > h) {
                             mY = mY * (-1);
 
-                            collison = true;
+                            collision = true;
                         }
 
                         nX = x + m * mX;
                         nY = y + m * mY;
 
+                        if (nX < 0) {
+                            nX = 0;
+                        }
+
+                        if (nX > w) {
+                            nX = w;
+                        }
+
+                        if (nY < 0) {
+                            nY = 0;
+                        }
+
+                        if (nY > h) {
+                            nY = h;
+                        }
+
+                        if (collision) {
+                            speed = Math.random() / 4;
+                        }
+
                         this.movement.set(
                             mX,
                             mY,
-                            Math.random() / 4
+                            speed
                         );
 
                         this.position.setX(nX);
@@ -462,13 +488,67 @@
             );
         }(Entity));
 
+        var Reporter = (function (Parent) {
+            return extend(
+                function Reporter(handler) {
+                    this.handler = handler;
+
+                    this.active = false;
+                }, Parent, {
+                    handler: null,
+
+                    active: false,
+
+                    register: function () {
+                    },
+                    unregister: function () {
+                    },
+                    trigger: function () {
+                    },
+
+                    getActive: function getActive() {
+                        return this.active;
+                    },
+                    setActive: function setActive(active) {
+                        this.active = active;
+                    },
+                }
+            );
+        }());
+
+        var EventReporter = (function (Parent) {
+            return extend(
+                function EventReporter(target, type, handler) {
+                    Parent.call(this, handler);
+
+                    this.target = target;
+                    this.type = type;
+                }, Parent, {
+                    target: null,
+
+                    type: null,
+
+                    register: function () {
+                        this.target.addEventListener(this.type, this.handler);
+                    },
+                    unregister: function () {
+                        this.target.removeEventListener(this.type, this.handler);
+                    },
+                    trigger: function () {
+                        var event = new Event(this.type);
+
+                        this.target.dispatchEvent(event);
+                    },
+                }
+            );
+        }(Reporter));
+
         var Demo = (function (Parent) {
             return extend(
-                function Demo(context, width, height, count) {
+                function Demo(context, width, height) {
                     Parent.call(this, context, width, height);
 
-                    // TODO: Getter/Setter methods.
-                    this.count = count;
+                    this.count = 100;
 
                     this.color = '#000';
                     this.pointColor = '#fff';
@@ -483,6 +563,26 @@
                     lineColor: null,
 
                     pointList: [],
+
+                    resize: function resize(event) {
+                        var canvas = this.context.canvas;
+                        var document = canvas.ownerDocument;
+                        var window = document.defaultView;
+
+                        var width = event.target.innerWidth;
+                        var height = event.target.innerHeight;
+
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        document.body.scrollTop = 0;
+
+                        this.bound.set(
+                            width,
+                            height,
+                            0
+                        );
+                    },
 
                     update: function update(frameTime) {
                         this.pointList.forEach(function (currentValue, index, array) {
@@ -501,13 +601,17 @@
                             currentValue.render(context);
                         }, this);
 
-                        context.fillStyle = this.lineColor;
-                        context.strokeStyle = this.lineColor;
-
                         context.lineWidth = 0.1;
 
                         this.pointList.forEach(function (currentValue, index, array) {
                             var sourcePosition = currentValue.getPosition();
+
+                            this.lineColor = ('rgb(' + (
+                                [random(0, 255), random(0, 255), random(0, 255)].join(',')
+                            ) + ')');
+
+                            context.fillStyle = this.lineColor;
+                            context.strokeStyle = this.lineColor;
 
                             context.beginPath();
 
@@ -538,8 +642,16 @@
                         }, this);
                     },
 
-                    initialize: function () {
-                        this.pointList.length = 0;
+                    windowResizeReporter: null,
+
+                    create: function create() {
+                        var canvas = this.context.canvas;
+                        var document = canvas.ownerDocument;
+                        var window = document.defaultView;
+
+                        this.windowResizeReporter = new EventReporter(window, 'resize', wrap(this.resize, this));
+                        this.windowResizeReporter.register();
+                        this.windowResizeReporter.trigger();
 
                         for (var count = 0; count < this.count; count++) {
                             var position = new Position(
@@ -548,7 +660,7 @@
                                 0
                             );
 
-                            var movementDirection = [-1, 0, +1];
+                            var movementDirection = [-1, +1];
 
                             var movement = new Position(
                                 Math.random() * movementDirection[random(0, movementDirection.length - 1)],
@@ -562,6 +674,19 @@
                         }
                     },
 
+                    destroy: function destory() {
+                        this.pointList.length = 0;
+
+                        this.windowResizeReporter.unregister();
+                    },
+
+                    getCount: function getCount() {
+                        return this.count;
+                    },
+                    setCount: function setCount(count) {
+                        this.count = count;
+                    },
+
                     getPointList: function getPointList() {
                         return this.pointList;
                     },
@@ -572,35 +697,15 @@
             );
         }(Game));
 
-        var instance = new Demo(context, canvas.width, canvas.height, 100);
-        var bound = instance.getBound();
-
-        function onResize(width, height) {
-            canvas.width = width;
-            canvas.height = height;
-
-            window.document.body.scrollTop = 0;
-
-            bound.set(
-                width,
-                height,
-                0
-            );
-        };
-
-        window.addEventListener('resize', function (event) {
-            onResize(window.innerWidth, window.innerHeight);
-        }, false);
-
-        onResize(window.innerWidth, window.innerHeight);
-
-        instance.initialize();
+        var instance = new Demo(context, canvas.width, canvas.height);
+        instance.setCount(150);
+        instance.create();
         instance.start();
 
-        // TODO: Add mouse interaction and colors.
+        // TODO: Add mouse interaction.
         // TODO: Add event listeners for "Game.play()", "Game.pause()" and "Game.initialize()".
         // TODO: Optimize usage of "var" and "const".
-        // TODO: Write some documentation and wiki.
+        // TODO: Write some documentation and wiki, add "console.log()" message.
     </script>
 </body>
 
