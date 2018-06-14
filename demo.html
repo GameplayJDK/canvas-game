@@ -754,23 +754,17 @@
                             return;
                         }
 
-                        this.player.render(context);
-
-                        this.pointList.forEach(function (currentValue, index, array) {
-                            currentValue.render(context);
-                        }, this);
-
-                        context.lineWidth = 0.1;
+                        //context.lineWidth = 0.1;
 
                         this.pointList.forEach(function (currentValue, index, array) {
                             var sourcePosition = currentValue.getPosition();
 
-                            this.lineColor = ('rgb(' + (
+                            var lineColor = ('rgb(' + (
                                 [random(0, 255), random(0, 255), random(0, 255)].join(',')
                             ) + ')');
 
-                            context.fillStyle = this.lineColor;
-                            context.strokeStyle = this.lineColor;
+                            context.fillStyle = lineColor;
+                            context.strokeStyle = lineColor;
 
                             context.beginPath();
 
@@ -798,7 +792,34 @@
                             }, this);
 
                             context.closePath();
+
+                            currentValue.render(context);
                         }, this);
+
+                        this.pointList.forEach(function (currentValue, index, array) {
+                            var sourcePosition = currentValue.getPosition();
+                            var targetPosition = this.player.getPosition();
+
+                            var dX = targetPosition.getX() - sourcePosition.getX();
+                            var dY = targetPosition.getY() - sourcePosition.getY();
+
+                            var d = Math.sqrt((dX * dX) + (dY * dY));
+
+                            if (d > 100) {
+                                return;
+                            }
+
+                            context.fillStyle = this.lineColor;
+                            context.strokeStyle = this.lineColor;
+
+                            context.beginPath();
+                            context.moveTo(sourcePosition.getX(), sourcePosition.getY());
+                            context.lineTo(targetPosition.getX(), targetPosition.getY());
+                            context.stroke();
+                            context.closePath();
+                        }, this);
+
+                        this.player.render(context);
                     },
 
                     windowResizeReporter: null,
@@ -883,7 +904,7 @@
         }(Game));
 
         var instance = new Demo(context, canvas.width, canvas.height);
-        instance.setCount(150);
+        instance.setCount(300);
         instance.create();
         instance.start();
 
